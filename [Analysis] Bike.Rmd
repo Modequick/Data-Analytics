@@ -1,0 +1,167 @@
+---
+title: "Analysis Bike"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Objective : 
+
+1. How do annual members and casual riders use Cyclistic bikes differently?
+2. Why would casual riders buy Cyclistic annual memberships?
+3. How can Cyclistic use digital media to influence casual riders to become members?
+
+## Prepare : 
+* Where is your data located?
+ The data is located in R studio
+
+* How is the data organized?
+  Data is segregated into quarters from the year 2013 to 2020 till the first quarter of the latter year. Each year having its CSV file.
+  
+* Are there issues with bias or credibility in this data? Does your data ROCCC?
+The data is taken from the first party, so that the creadibility is proven
+
+* How are you addressing licensing, privacy, security, and accessibility?
+The data is collected by https://www.divvybikes.com/data-license-agreement. In the data, there is no personal information about the customers
+
+* How did you verify the data’s integrity?
+the data integrity consist of accuracy, completeness, consistency, and trustworthiness. 
+the data is complete to analyze the current objective, and the data is also consisten across the year.
+
+* How does it help you answer your question?
+by analyzing and have a deep understanding about the data, the objective will be answered.
+
+* Are there any problems with the data?
+Yes, there is alot of <i>Null Values </i> and thereis alot of outliers
+
+# process
+
+``` {r}
+library("tidyverse")
+library("janitor")
+
+df1 <- `202005.divvy.tripdata`
+df2 <- `202006.divvy.tripdata`
+df3 <- `202007.divvy.tripdata`
+df4 <- `202008.divvy.tripdata`
+df5 <- `202009.divvy.tripdata`
+df6 <- `202010.divvy.tripdata`
+df7 <- `202011.divvy.tripdata`
+df8 <- `202012.divvy.tripdata`
+df9 <- `202101.divvy.tripdata`
+df10 <- `202102.divvy.tripdata`
+df11 <- `202103.divvy.tripdata`
+df12 <- `202104.divvy.tripdata`
+
+
+df <-rbind(df1,df2,df3,df4,df5,df6,df7,df8,df9,df10,df11,df12)
+
+#removing Null data
+df <- na.omit(df)
+#removing duplicates
+df <- distinct(df,ride_id, .keep_all = TRUE)
+
+#new Features
+#adding rent_time
+  df$started_at <- ymd_hms (df$started_at)
+  df$ended_at <- ymd_hms(df$ended_at)
+df <- mutate(df, rent_time = df$ended_at-df$started_at)
+
+#adding days at given date
+  df$day <- weekdays(as.Date(df$started_at))
+  
+#removing outliers 
+  q1 <- quantile(df$rent_time,0.25)
+  q3 <- quantile(df$rent_time,0.75)
+  IQR <- q3-q1
+  lowerbound <- q1-1.5*IQR
+  upperbound <- q3+1.5*IQR
+
+df <- subset(df, df$rent_time> lowerbound & df$rent_time< upperbound)
+
+#grouping by dawn morning afternoon and night
+x <- as.integer(df$start_hour)
+df$categories <- cut(x, breaks = c(-1,5,11,17,25),
+                  labels = c("Dawn","Morning","Afternoon","Night"))
+head(df)
+```
+
+## analyzing
+### How many casual and members do we have?
+```
+df %>% 
+  group_by(member_casual) %>% 
+  summarize(count=length(ride_id),
+            percentage_of_total=(length(ride_id)/nrow(df))*100)
+```
+we know there are 36.9% are  casual and 63.1 % are member.
+
+### how is the characteristic by rent time between member and casual?
+```
+df %>%
+  group_by(member_casual) %>%
+    summarize(mean(rent_time/60))
+```
+we know that the average of casual is higher than a member. By this data we know what the casual use 19 minuts 58 Seconds meanwhile the member rent time is 14 minuts and 8 second.
+
+### how is the characteristic by days?
+```
+days_data <-df %>% 
+  group_by(day,member_casual) %>%
+    summarize(count=length(ride_id),
+              percentage = (length(ride_id)/nrow(df))*100)
+ggplot(data = days_data, aes(x= day,fill = member_casual))+  geom_bar(aes(y = percentage),
+           position = "dodge", stat = "identity") 
+```
+by the chart above, we can see that Weekend has the highest user. In this data, we can see that the user in weekend is 6.44% for sunday and 8.42% for saturday.
+
+### how is the characteristic by time?
+```
+dftime <- df %>% group_by(start_hour,member_casual) %>% summarize(counter=length(ride_id))
+ggplot(data= dftime,aes(x=start_hour,fill=member_casual)) + geom_bar(aes(y=counter ,col="#69b3a2"),
+            position="dodge" ,stat="identity")
+```
+by looking from above bar plot, we can see that in the interval of 15.00 to 18.00 is the most crowded for casual and member.
+
+#### how is the characteristic by time phase?
+```
+characteristicbytime <-df %>%
+  group_by(categories,member_casual) %>%
+    summarize(count=length(ride_id))
+
+ggplot(data= characteristicbytime,aes(x=categories,fill=member_casual)) + geom_bar(aes(y=count),
+          position="dodge" ,stat="identity")
+```
+
+by looking from above we can see that the best time to do the campaign is in the afternoon since the casual member using the most at afternoon.
+
+### Checking the location with the most casual 
+dfcasual <- filter(df,member_casual=="casual")
+locmarketing <- dfcasual%>%
+  group_by(start_station_name, member_casual) %>% 
+  summarize(count=length(ride_id)) %>%
+  arrange(desc(count))
+
+head(locmarketing)
+ggplot(data= head(locmarketing),aes(x=start_station_name,fill=member_casual)) + geom_bar(aes(y=count ,col="#69b3a2"),
+      position="dodge" ,stat="identity") + labs(title="top 5 location marketing")
+
+
+
+# Observation
+
+From the analysis above, here are some notes to answers the objective :
+1. The casual rent rider has more average rent time then the usual (19 minuts 58 seconds for casual and 14 minuts and 8 second). Therefore we can raise the cost of rent time for non member to shift the casual to members.
+
+2. Weekend is the highest count rent for both casual and members comparing to the weekdays. Infact there a huge different between saturday and the rest of the day for casual. We can assume that they rent bike for entertainment purposes for weekend and they rent for work purposes for weekedays.
+
+3. The most active rent time is in range of afternoon, which range of 11 AM to 5 PM. We think that in that time, people use bike to go back to their home after worktime.
+
+4. As an average of 12 month, both casual and member usually started their day at 5AM and increasing until 5 PM. This is because they rent the bike to commute to their work. And as usual, corporate usually ends at 5 pm.
+
+5. For the location, its best that the campaign be shared in Streeter Dr & Grand Ave,Lake Shore Dr & Monroe St , Millennium Park, Theater on the Lake, Lake Shore Dr & North Blvd since the casual member start there the most
+
+6.We can make a stylish bike rent place so that can make a digital post about it and can increase more brand awareness about the company. 
+
