@@ -1,5 +1,5 @@
 # Data-Analytics
-(1) (1) [Experimentation] AB Testing Bootstrap x T-Test : Using the data of different version in the game to determine which version resulting in highest retention.
+(1) [Experimentation] AB Testing Bootstrap x T-Test : Using the data of different version in the game to determine which version resulting in highest retention.
 
 (2) [Analysis] Bike : Analysis of how bike company customer use the product. 
 
